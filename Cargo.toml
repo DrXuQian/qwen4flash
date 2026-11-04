@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/q4e-core", "crates/q4e-ppu", "crates/q4e-cli"]
+members = ["crates/q4e-core", "crates/q4e-ppu", "crates/q4e-cuda", "crates/q4e-cli"]
 resolver = "2"
 
 [workspace.package]

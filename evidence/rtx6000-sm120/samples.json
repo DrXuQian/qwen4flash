@@ -1,0 +1,289 @@
+{
+  "repository": "unsloth/Qwen3.8-Flash-Next-GGUF",
+  "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+  "cropped_samples": true,
+  "samples": [
+    {
+      "tensor": "blk.0.ffn_gate_exps.weight",
+      "file": "blk.0.ffn_gate_exps.weight.bin",
+      "qtype": 12,
+      "n": 640,
+      "k": 2560,
+      "experts": 3,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 30833472800,
+          "bytes": 921600,
+          "sha256": "2330e4507351b92810133fbc1b84099b969d151bd9136393187acc0bca4592b0"
+        },
+        {
+          "expert": 17,
+          "start": 30849140000,
+          "bytes": 921600,
+          "sha256": "c601636cc54397becddb023ff9ad3629740a1ee46b32b37e7408671215a57ed9"
+        },
+        {
+          "expert": 511,
+          "start": 31304410400,
+          "bytes": 921600,
+          "sha256": "601ba6701dcf9bb4d5d81bdc28730eaa029a28d33256f380181cf89ea256507d"
+        }
+      ],
+      "sha256": "fc8d5ed7948be20af3d82f51eb74815a7b83c064ee17a78019278aec647d95d8"
+    },
+    {
+      "tensor": "blk.0.ffn_up_exps.weight",
+      "file": "blk.0.ffn_up_exps.weight.bin",
+      "qtype": 12,
+      "n": 640,
+      "k": 2560,
+      "experts": 3,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 31312325920,
+          "bytes": 921600,
+          "sha256": "bef1f9e4c842fd3d56a02a97b33e70cb2de603bad8edb39734d12622adbdb138"
+        },
+        {
+          "expert": 17,
+          "start": 31327993120,
+          "bytes": 921600,
+          "sha256": "7f69a9b058badc2d016476b6e26c843bddbb8a8a0a7a7855b41c8d3380cd53c4"
+        },
+        {
+          "expert": 511,
+          "start": 31783263520,
+          "bytes": 921600,
+          "sha256": "002dd88061581f2262c1828636bd2f69ed10c89853c84750dae4296344054bc2"
+        }
+      ],
+      "sha256": "aaefeb242fe5dd00713b36aaa60b96e69da5b4dbc4060a7aa9618a5ac7ab4b34"
+    },
+    {
+      "tensor": "blk.2.ffn_gate_exps.weight",
+      "file": "blk.2.ffn_gate_exps.weight.bin",
+      "qtype": 13,
+      "n": 640,
+      "k": 2560,
+      "experts": 2,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 34450918432,
+          "bytes": 1126400,
+          "sha256": "b0d5ebde1553a8d7f0b999f421c8a1ee3aded64c48b98b9a0df850a8482de9ef"
+        },
+        {
+          "expert": 511,
+          "start": 35026508832,
+          "bytes": 1126400,
+          "sha256": "84a57057a4f46c4e8ee7cbf5b90302bdc9b90edc105b2c9323af30423c4f1388"
+        }
+      ],
+      "sha256": "d666cfaa26643bdce0cb7a39d992c5d8478c1b461222957c45d15be56284d905"
+    },
+    {
+      "tensor": "blk.2.ffn_up_exps.weight",
+      "file": "blk.2.ffn_up_exps.weight.bin",
+      "qtype": 13,
+      "n": 640,
+      "k": 2560,
+      "experts": 2,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 35034629152,
+          "bytes": 1126400,
+          "sha256": "65b9014d3936cbd32d0d20d40eecc4b5993bf43f44222c8445b0b655532f624b"
+        },
+        {
+          "expert": 511,
+          "start": 35610219552,
+          "bytes": 1126400,
+          "sha256": "56cd437531a470ffc4f8a60a598fbbad5c928897343a05f6eb5cc1007bd46447"
+        }
+      ],
+      "sha256": "e8dd0d1febf01ea564de79b0724da17b41a555f1118a604c9a6d78b57c072d3b"
+    },
+    {
+      "tensor": "blk.0.ffn_down_exps.weight",
+      "file": "blk.0.ffn_down_exps.weight.bin",
+      "qtype": 7,
+      "n": 2560,
+      "k": 640,
+      "experts": 2,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 30202586400,
+          "bytes": 1228800,
+          "sha256": "f27870c4139a4b7fde23ae608b6571b381de7242a1147b4b341f16604b30905c"
+        },
+        {
+          "expert": 511,
+          "start": 30830503200,
+          "bytes": 1228800,
+          "sha256": "21331809b8032071f6ab156de2b56ad62680d22f7ce1f3cabb42a53d5a261501"
+        }
+      ],
+      "sha256": "56dae3e06f4029872f09fd1d211bf573032cdfe4f5baaa823f4ed990dcaa4b27"
+    },
+    {
+      "tensor": "blk.2.ffn_down_exps.weight",
+      "file": "blk.2.ffn_down_exps.weight.bin",
+      "qtype": 8,
+      "n": 2560,
+      "k": 640,
+      "experts": 2,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 33557888032,
+          "bytes": 1740800,
+          "sha256": "6d9f38d6773ec0ec8a7fd6549dcbffaa08804f0a453dd7ed4fd5c5adcb217f05"
+        },
+        {
+          "expert": 511,
+          "start": 34447436832,
+          "bytes": 1740800,
+          "sha256": "c203e500499450019b8fbb3185d2243bd8d9bdac25d0335cc1cc3a787b7895dd"
+        }
+      ],
+      "sha256": "d8340e237762a7e4241b757e30f95916b0b90d2cac7b4fe73a320f2ef2d3e37d"
+    },
+    {
+      "tensor": "blk.48.ffn_gate_exps.weight",
+      "file": "blk.48.ffn_gate_exps.weight.bin",
+      "qtype": 8,
+      "n": 640,
+      "k": 2560,
+      "experts": 2,
+      "source_path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 956899392,
+          "bytes": 1740800,
+          "sha256": "727d91bdd2de04d5fecc6de0b3248380efcb10f020d5bbd8bc7a22e3817b549f"
+        },
+        {
+          "expert": 511,
+          "start": 1846448192,
+          "bytes": 1740800,
+          "sha256": "720869d4875e57b19444fa2ccd94b23e4414d183eaa5fc6ba905f2e397aba044"
+        }
+      ],
+      "sha256": "5b1e9c0c7d6e8a6664e3be7e1a08e5d6218158901306873b852046c84f9cb7b8"
+    },
+    {
+      "tensor": "blk.48.ffn_up_exps.weight",
+      "file": "blk.48.ffn_up_exps.weight.bin",
+      "qtype": 8,
+      "n": 640,
+      "k": 2560,
+      "experts": 2,
+      "source_path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 1855182912,
+          "bytes": 1740800,
+          "sha256": "28aa4c5fc5dfeb20e4fcbe6d5d18acc385a6b363e27781402b997d01fde7438f"
+        },
+        {
+          "expert": 511,
+          "start": 2744731712,
+          "bytes": 1740800,
+          "sha256": "4f3cba85d6651decdee3f453d51f4813bd62278ad8e75732ba2d25c4ce2240ea"
+        }
+      ],
+      "sha256": "b96ec74bf0d77519af548c2c4cfe6f898368d39a8746c824c4ac91e6dfdc1069"
+    },
+    {
+      "tensor": "blk.48.ffn_down_exps.weight",
+      "file": "blk.48.ffn_down_exps.weight.bin",
+      "qtype": 8,
+      "n": 2560,
+      "k": 640,
+      "experts": 2,
+      "source_path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 63868992,
+          "bytes": 1740800,
+          "sha256": "e368911950dea24c3e014908600b3b2f46b2898eebd9d97ad17ccb93ebce6a9f"
+        },
+        {
+          "expert": 511,
+          "start": 953417792,
+          "bytes": 1740800,
+          "sha256": "b833a2969dc8c481427c4d50a02d6619364cea89f66ed6129002c68602ada183"
+        }
+      ],
+      "sha256": "c5bf08b1e0c7e5a43dbbb08c7d4d9100f8d987d7898615db677daf4dbbdf174d"
+    },
+    {
+      "tensor": "blk.48.indexer.q_proj.weight",
+      "file": "blk.48.indexer.q_proj.weight.bin",
+      "qtype": 30,
+      "n": 128,
+      "k": 2560,
+      "experts": 1,
+      "source_path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 2762965056,
+          "bytes": 655360,
+          "sha256": "68b71af95121836713c0116ab2f731c63c478946747a20ba999ac9df782f33f8"
+        }
+      ],
+      "sha256": "68b71af95121836713c0116ab2f731c63c478946747a20ba999ac9df782f33f8"
+    },
+    {
+      "tensor": "per_layer_token_embd.weight",
+      "file": "per_layer_token_embd.weight.bin",
+      "qtype": 20,
+      "n": 32,
+      "k": 160,
+      "experts": 1,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 682453280,
+          "bytes": 2880,
+          "sha256": "998707495e16ea5e6cc06c2f6638e5df0d867dd35b917de269cfb185d13a4118"
+        }
+      ],
+      "sha256": "998707495e16ea5e6cc06c2f6638e5df0d867dd35b917de269cfb185d13a4118"
+    },
+    {
+      "tensor": "output.weight",
+      "file": "output.weight.bin",
+      "qtype": 8,
+      "n": 256,
+      "k": 2560,
+      "experts": 1,
+      "source_path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "ranges": [
+        {
+          "expert": 0,
+          "start": 18720,
+          "bytes": 696320,
+          "sha256": "7bf06be74cfb98445e1df353ec85d2b0b8978e912e2f4b1c2ab34eb97c54ae45"
+        }
+      ],
+      "sha256": "7bf06be74cfb98445e1df353ec85d2b0b8978e912e2f4b1c2ab34eb97c54ae45"
+    }
+  ]
+}

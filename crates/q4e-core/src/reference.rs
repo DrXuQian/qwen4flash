@@ -3,6 +3,7 @@ use crate::{
     gguf::{ModelIndex, type_layout},
     model::{Config, ple_rows},
     mtp::{Backend, Step},
+    ops::{Attention, DeltaStep, Operators, Scalar},
     quant::decode_row,
 };
 use anyhow::{Context, Result, ensure};
@@ -12,6 +13,10 @@ use std::{collections::BTreeMap, fs::File, sync::Arc};
 #[derive(Clone)]
 enum Data {
     Owned(Arc<Vec<f32>>),
+    Encoded {
+        bytes: Arc<Vec<u8>>,
+        kind: u32,
+    },
     Mapped {
         map: Arc<Mmap>,
         offset: usize,
@@ -26,9 +31,13 @@ pub struct Tensor {
 impl Tensor {
     pub fn owned(dims: Vec<usize>, values: Vec<f32>) -> Result<Self> {
         ensure!(
-            dims.iter().product::<usize>() == values.len(),
-            "weight shape mismatch"
+            !dims.is_empty() && dims.len() <= 3 && dims.iter().all(|&x| x > 0),
+            "invalid owned tensor dimensions"
         );
+        let elements = dims
+            .iter()
+            .try_fold(1usize, |n, &d| n.checked_mul(d).context("tensor overflow"))?;
+        ensure!(elements == values.len(), "weight shape mismatch");
         Ok(Self {
             dims,
             data: Data::Owned(Arc::new(values)),
@@ -40,6 +49,13 @@ impl Tensor {
         ensure!(row < rows, "weight row out of range");
         match &self.data {
             Data::Owned(v) => Ok(v[row * width..(row + 1) * width].to_vec()),
+            Data::Encoded { bytes, kind } => {
+                let (block, size) = type_layout(*kind)?;
+                let rb = width / (block as usize) * size as usize;
+                let mut out = vec![0.; width];
+                decode_row(*kind, &bytes[row * rb..(row + 1) * rb], &mut out)?;
+                Ok(out)
+            }
             Data::Mapped { map, offset, kind } => {
                 let (block, bytes) = type_layout(*kind)?;
                 let rb = width / (block as usize) * bytes as usize;
@@ -57,7 +73,7 @@ impl Tensor {
         }
         Ok(a)
     }
-    fn mm(&self, x: &[f32], expert: usize) -> Result<Vec<f32>> {
+    pub fn mm(&self, x: &[f32], expert: usize) -> Result<Vec<f32>> {
         ensure!(x.len() == self.dims[0], "matvec input width mismatch");
         let n = self.dims.get(1).copied().unwrap_or(1);
         let e = self.dims.get(2).copied().unwrap_or(1);
@@ -66,6 +82,50 @@ impl Tensor {
             .map(|j| Ok(dot(&self.row(expert * n + j)?, x)))
             .collect()
     }
+    pub fn encoded(dims: Vec<usize>, kind: u32, bytes: Vec<u8>) -> Result<Self> {
+        let (block, size) = type_layout(kind)?;
+        ensure!(
+            !dims.is_empty()
+                && dims.len() <= 3
+                && dims.iter().all(|&d| d > 0)
+                && dims[0] % (block as usize) == 0,
+            "invalid encoded tensor geometry"
+        );
+        let n = dims
+            .iter()
+            .try_fold(1usize, |n, &d| n.checked_mul(d).context("tensor overflow"))?;
+        ensure!(
+            (n / (block as usize)).checked_mul(size as usize) == Some(bytes.len()),
+            "encoded tensor byte count mismatch"
+        );
+        Ok(Self {
+            dims,
+            data: Data::Encoded {
+                bytes: Arc::new(bytes),
+                kind,
+            },
+        })
+    }
+    /// Exact stored bytes. The kind is part of the storage identity, never inferred from its size.
+    pub fn storage(&self) -> (u32, &[u8]) {
+        match &self.data {
+            Data::Owned(v) => {
+                // F32 storage has no padding and this project's GGUF target is little-endian.
+                const {
+                    assert!(cfg!(target_endian = "little"));
+                }
+                (0, unsafe {
+                    std::slice::from_raw_parts(v.as_ptr().cast(), v.len() * 4)
+                })
+            }
+            Data::Encoded { bytes, kind } => (*kind, bytes),
+            Data::Mapped { map, offset, kind } => {
+                let (block, size) = type_layout(*kind).expect("validated tensor type");
+                let n = self.dims.iter().product::<usize>() / (block as usize) * (size as usize);
+                (*kind, &map[*offset..*offset + n])
+            }
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -73,6 +133,7 @@ pub struct Weights(pub BTreeMap<String, Tensor>);
 impl Weights {
     /// The caller must not modify/truncate mapped model files while this owner lives.
     pub fn open(index: &ModelIndex) -> Result<Self> {
+        index.validate()?;
         let mut w = Self::default();
         for s in &index.shards {
             let f = File::open(&s.path)?;
@@ -98,14 +159,11 @@ impl Weights {
         }
         Ok(w)
     }
-    fn get(&self, n: &str) -> Result<&Tensor> {
+    pub fn get(&self, n: &str) -> Result<&Tensor> {
         self.0.get(n).with_context(|| format!("missing weight {n}"))
     }
     fn v(&self, n: &str) -> Result<Vec<f32>> {
         self.get(n)?.all()
-    }
-    fn mm(&self, n: &str, x: &[f32]) -> Result<Vec<f32>> {
-        self.get(n)?.mm(x, 0)
     }
     fn has(&self, n: &str) -> bool {
         self.0.contains_key(n)
@@ -152,9 +210,32 @@ impl State {
             position: 0,
             tokens: Vec::new(),
             gdn: (0..c.layers + 1)
+                .map(|il| GdnState {
+                    matrix: if c.is_attention(il) {
+                        Vec::new()
+                    } else {
+                        vec![0.; c.value_heads * c.gdn_dim * c.gdn_dim]
+                    },
+                    history: if c.is_attention(il) {
+                        Vec::new()
+                    } else {
+                        vec![vec![0.; c.conv_channels()]; c.conv_kernel - 1]
+                    },
+                })
+                .collect(),
+            attention: vec![AttentionState::default(); c.layers + 1],
+            ple_history: vec![Vec::new(); c.layers + 1],
+        }
+    }
+    /// The learned predictor has one attention block and no recurrent trunk.
+    pub fn new_draft(c: &Config) -> Self {
+        Self {
+            position: 0,
+            tokens: Vec::new(),
+            gdn: (0..c.layers + 1)
                 .map(|_| GdnState {
-                    matrix: vec![0.; c.value_heads * c.gdn_dim * c.gdn_dim],
-                    history: vec![vec![0.; c.conv_channels()]; c.conv_kernel - 1],
+                    matrix: Vec::new(),
+                    history: Vec::new(),
                 })
                 .collect(),
             attention: vec![AttentionState::default(); c.layers + 1],
@@ -167,6 +248,7 @@ pub struct Reference {
     pub config: Config,
     pub weights: Weights,
     pub max_context: usize,
+    pub operators: Box<dyn Operators>,
 }
 impl Reference {
     pub fn new(config: Config, weights: Weights, max_context: usize) -> Result<Self> {
@@ -176,13 +258,26 @@ impl Reference {
             config,
             weights,
             max_context,
+            operators: Box::new(Scalar),
         })
+    }
+    pub fn with_operators(mut self, operators: Box<dyn Operators>) -> Self {
+        self.operators = operators;
+        self
+    }
+    fn wm(&self, name: &str, x: &[f32]) -> Result<Vec<f32>> {
+        self.operators.matvec(name, self.weights.get(name)?, 0, x)
+    }
+    fn expert_mm(&self, il: usize, name: &str, x: &[f32], expert: usize) -> Result<Vec<f32>> {
+        let name = Self::name(il, name);
+        self.operators
+            .matvec(&name, self.weights.get(&name)?, expert, x)
     }
     fn name(il: usize, s: &str) -> String {
         format!("blk.{il}.{s}")
     }
     fn mm(&self, il: usize, s: &str, x: &[f32]) -> Result<Vec<f32>> {
-        self.weights.mm(&Self::name(il, s), x)
+        self.wm(&Self::name(il, s), x)
     }
     fn v(&self, il: usize, s: &str) -> Result<Vec<f32>> {
         self.weights.v(&Self::name(il, s))
@@ -211,17 +306,15 @@ impl Reference {
         let xn = group_norm(r, &gamma, c.width, c.rms_epsilon)?;
         let (mut low, mut injection) =
             if inject && self.weights.has(&format!("{prefix}_down_inject.weight")) {
-                let mut a = self
-                    .weights
-                    .mm(&format!("{prefix}_down_inject.weight"), &xn)?;
+                let mut a = self.wm(&format!("{prefix}_down_inject.weight"), &xn)?;
                 ensure!(a.len() == c.hc_rank + c.hc, "bad HC merged shape");
                 let b = a.split_off(c.hc_rank);
                 (a, b)
             } else {
                 (
-                    self.weights.mm(&format!("{prefix}_down.weight"), &xn)?,
+                    self.wm(&format!("{prefix}_down.weight"), &xn)?,
                     if inject {
-                        self.weights.mm(&format!("{prefix}_inject.weight"), &xn)?
+                        self.wm(&format!("{prefix}_inject.weight"), &xn)?
                     } else {
                         Vec::new()
                     },
@@ -233,7 +326,7 @@ impl Reference {
         for x in &mut injection {
             *x /= c.hc as f32;
         }
-        let gates = self.weights.mm(&format!("{prefix}_up.weight"), &low)?;
+        let gates = self.wm(&format!("{prefix}_up.weight"), &low)?;
         ensure!(gates.len() == r.len(), "HC gate width mismatch");
         let mut mixed = vec![0.; c.width];
         for s in 0..c.hc {
@@ -255,12 +348,11 @@ impl Reference {
         } else {
             "token_embd.weight"
         };
-        self.weights.mm(name, &x)
+        self.wm(name, &x)
     }
     fn gdn(&self, il: usize, x: &[f32], state: &mut GdnState) -> Result<Vec<f32>> {
         let c = &self.config;
         let s = c.gdn_dim;
-        let qk = c.key_heads * s;
         let (raw, z) = self.pair(
             il,
             "attn_qkv_gate.weight",
@@ -305,29 +397,21 @@ impl Reference {
         for head in 0..2 * c.key_heads {
             l2_norm(&mut h[head * s..(head + 1) * s], c.rms_epsilon);
         }
-        let mut out = vec![0.; c.value_heads * s];
-        for vh in 0..c.value_heads {
-            let kh = vh % c.key_heads;
-            let q = &h[kh * s..(kh + 1) * s];
-            let k = &h[qk + kh * s..qk + (kh + 1) * s];
-            let v = &h[2 * qk + vh * s..2 * qk + (vh + 1) * s];
-            let decay = (softplus(alpha[vh] + dt[vh]) * a[vh]).exp();
-            let beta = sigmoid(beta[vh]);
-            let matrix = &mut state.matrix[vh * s * s..(vh + 1) * s * s];
-            for col in 0..s {
-                let mut prediction = 0.;
-                for row in 0..s {
-                    prediction += k[row] * matrix[row * s + col];
-                }
-                let delta = (v[col] - decay * prediction) * beta;
-                let mut output = 0.;
-                for row in 0..s {
-                    matrix[row * s + col] = decay * matrix[row * s + col] + k[row] * delta;
-                    output += q[row] * matrix[row * s + col];
-                }
-                out[vh * s + col] = output / (s as f32).sqrt();
-            }
-        }
+        let decay: Vec<_> = (0..c.value_heads)
+            .map(|i| (softplus(alpha[i] + dt[i]) * a[i]).exp())
+            .collect();
+        let beta: Vec<_> = beta.into_iter().map(sigmoid).collect();
+        let out = self.operators.delta(
+            &DeltaStep {
+                qkv: &h,
+                decay: &decay,
+                beta: &beta,
+                key_heads: c.key_heads,
+                value_heads: c.value_heads,
+                dim: s,
+            },
+            &mut state.matrix,
+        )?;
         let gamma = self.v(il, "ssm_norm.weight")?;
         let mut out = group_norm(&out, &gamma, s, c.rms_epsilon)?;
         for (i, y) in out.iter_mut().enumerate() {
@@ -355,63 +439,68 @@ impl Reference {
         );
         let qnorm = self.v(il, "attn_q_norm.weight")?;
         let knorm = self.v(il, "attn_k_norm.weight")?;
-        let iq = self.mm(il, "indexer.q_proj.weight", x)?;
-        let ik = self.mm(il, "indexer.k_proj.weight", x)?;
-        ensure!(
-            ik.len() == c.index_dim && iq.len() == c.index_heads * c.index_dim,
-            "indexer shape mismatch"
-        );
-        state.raw_tail.push(ik);
-        if state.raw_tail.len() == c.index_block {
-            let mut pooled = vec![0.; c.index_dim];
-            for row in &state.raw_tail {
-                for (i, &v) in row.iter().enumerate() {
-                    pooled[i] += v / c.index_block as f32;
+        let selected = if c.attention_compress_ratios[il] == 0 {
+            (0..pos + 1).collect::<Vec<_>>()
+        } else {
+            let iq = self.mm(il, "indexer.q_proj.weight", x)?;
+            let ik = self.mm(il, "indexer.k_proj.weight", x)?;
+            ensure!(
+                ik.len() == c.index_dim && iq.len() == c.index_heads * c.index_dim,
+                "indexer shape mismatch"
+            );
+            state.raw_tail.push(ik);
+            if state.raw_tail.len() == c.index_block {
+                let mut pooled = vec![0.; c.index_dim];
+                for row in &state.raw_tail {
+                    for (i, &v) in row.iter().enumerate() {
+                        pooled[i] += v / c.index_block as f32;
+                    }
                 }
+                pooled = group_norm(
+                    &pooled,
+                    &self.v(il, "indexer.k_norm.weight")?,
+                    c.index_dim,
+                    c.rms_epsilon,
+                )?;
+                rope(&mut pooled, c.rope_dim, pos, c.rope_base);
+                state.pooled.push(pooled);
+                state.raw_tail.clear();
             }
-            pooled = group_norm(
-                &pooled,
-                &self.v(il, "indexer.k_norm.weight")?,
+            let mut iq = group_norm(
+                &iq,
+                &self.v(il, "indexer.q_norm.weight")?,
                 c.index_dim,
                 c.rms_epsilon,
             )?;
-            rope(&mut pooled, c.rope_dim, pos, c.rope_base);
-            state.pooled.push(pooled);
-            state.raw_tail.clear();
-        }
-        let mut iq = group_norm(
-            &iq,
-            &self.v(il, "indexer.q_norm.weight")?,
-            c.index_dim,
-            c.rms_epsilon,
-        )?;
-        for q in iq.chunks_exact_mut(c.index_dim) {
-            rope(q, c.rope_dim, pos, c.rope_base);
-        }
-        let mut scores: Vec<_> = state
-            .pooled
-            .iter()
-            .enumerate()
-            .map(|(i, k)| {
-                let score = iq
-                    .chunks_exact(c.index_dim)
-                    .map(|q| dot(q, k).max(0.) / (c.index_dim as f32).sqrt())
-                    .sum::<f32>();
-                (i, score)
-            })
-            .collect();
-        ensure!(
-            scores.iter().all(|(_, s)| s.is_finite()),
-            "nonfinite QSA scores"
-        );
-        scores.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
-        scores.truncate(c.index_top_k / c.index_block);
-        scores.sort_by_key(|x| x.0);
-        let mut selected = Vec::new();
-        for (i, _) in scores {
-            selected.extend(i * c.index_block..(i + 1) * c.index_block);
-        }
-        selected.extend(state.pooled.len() * c.index_block..pos + 1);
+            for q in iq.chunks_exact_mut(c.index_dim) {
+                rope(q, c.rope_dim, pos, c.rope_base);
+            }
+            let mut scores: Vec<_> = state
+                .pooled
+                .iter()
+                .enumerate()
+                .map(|(i, k)| {
+                    let score = iq
+                        .chunks_exact(c.index_dim)
+                        .map(|q| dot(q, k).max(0.) / (c.index_dim as f32).sqrt())
+                        .sum::<f32>();
+                    (i, score)
+                })
+                .collect();
+            ensure!(
+                scores.iter().all(|(_, s)| s.is_finite()),
+                "nonfinite QSA scores"
+            );
+            scores.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
+            scores.truncate(c.index_top_k / c.index_block);
+            scores.sort_by_key(|x| x.0);
+            let mut selected = Vec::new();
+            for (i, _) in scores {
+                selected.extend(i * c.index_block..(i + 1) * c.index_block);
+            }
+            selected.extend(state.pooled.len() * c.index_block..pos + 1);
+            selected
+        };
         k = group_norm(&k, &knorm, d, c.rms_epsilon)?;
         for row in k.chunks_exact_mut(d) {
             rope(row, c.rope_dim, pos, c.rope_base);
@@ -422,7 +511,7 @@ impl Reference {
             state.keys.len() == pos + 1 && !selected.is_empty(),
             "attention position/state mismatch"
         );
-        let mut output = vec![0.; c.attention_heads * d];
+        let mut queries = Vec::with_capacity(c.attention_heads * d);
         for head in 0..c.attention_heads {
             let mut q = group_norm(
                 &qg[head * 2 * d..head * 2 * d + d],
@@ -431,17 +520,18 @@ impl Reference {
                 c.rms_epsilon,
             )?;
             rope(&mut q, c.rope_dim, pos, c.rope_base);
-            let kh = head / (c.attention_heads / c.kv_heads);
-            let a: Vec<_> = selected
-                .iter()
-                .map(|&i| dot(&q, &state.keys[i][kh * d..(kh + 1) * d]) / (d as f32).sqrt())
-                .collect();
-            let probs = softmax(&a)?;
-            for (&i, &p) in selected.iter().zip(&probs) {
-                for j in 0..d {
-                    output[head * d + j] += p * state.values[i][kh * d + j];
-                }
-            }
+            queries.extend(q);
+        }
+        let mut output = self.operators.attention(&Attention {
+            query: &queries,
+            keys: &state.keys,
+            values: &state.values,
+            selected: &selected,
+            heads: c.attention_heads,
+            kv_heads: c.kv_heads,
+            dim: d,
+        })?;
+        for head in 0..c.attention_heads {
             for j in 0..d {
                 output[head * d + j] *= sigmoid(qg[head * 2 * d + d + j]);
             }
@@ -461,10 +551,7 @@ impl Reference {
         let mut output = vec![0.; c.width];
         for e in ids {
             let (gate, up) = if self.weights.has(&Self::name(il, "ffn_gate_up_exps.weight")) {
-                let mut y = self
-                    .weights
-                    .get(&Self::name(il, "ffn_gate_up_exps.weight"))?
-                    .mm(x, e)?;
+                let mut y = self.expert_mm(il, "ffn_gate_up_exps.weight", x, e)?;
                 ensure!(
                     y.len() == 2 * c.expert_width,
                     "merged expert shape mismatch"
@@ -473,19 +560,12 @@ impl Reference {
                 (y, up)
             } else {
                 (
-                    self.weights
-                        .get(&Self::name(il, "ffn_gate_exps.weight"))?
-                        .mm(x, e)?,
-                    self.weights
-                        .get(&Self::name(il, "ffn_up_exps.weight"))?
-                        .mm(x, e)?,
+                    self.expert_mm(il, "ffn_gate_exps.weight", x, e)?,
+                    self.expert_mm(il, "ffn_up_exps.weight", x, e)?,
                 )
             };
             let hidden: Vec<_> = gate.iter().zip(up).map(|(&g, u)| silu(g) * u).collect();
-            let down = self
-                .weights
-                .get(&Self::name(il, "ffn_down_exps.weight"))?
-                .mm(&hidden, e)?;
+            let down = self.expert_mm(il, "ffn_down_exps.weight", &hidden, e)?;
             for (i, y) in output.iter_mut().enumerate() {
                 *y += down[i] * (probs[e] / sum) * c.expert_scale;
             }
@@ -915,13 +995,21 @@ mod tests {
             tail = Some(ordinary.target(&mut baseline, t).unwrap());
         }
         let model = Reference::new(c.clone(), w, 64).unwrap();
-        let mut session = Session::new(model, State::new(&c), State::new(&c), 3, None).unwrap();
+        let mut session =
+            Session::new(model, State::new(&c), State::new_draft(&c), 3, None).unwrap();
         session.prefill(&prompt).unwrap();
         assert_eq!(session.generate(13).unwrap(), expected);
         assert_eq!(session.target, baseline);
         assert_eq!(session.target.attention[1].pooled.len(), 9);
         assert!(!session.target.ple_history[0].is_empty());
         assert!(session.stats.proposed > 0);
+        assert!(
+            session
+                .draft
+                .gdn
+                .iter()
+                .all(|s| s.matrix.is_empty() && s.history.is_empty())
+        );
     }
     #[test]
     fn prompt_chunk_boundaries_do_not_change_model_state() {
@@ -931,7 +1019,7 @@ mod tests {
             Session::new(
                 Reference::new(c.clone(), w.clone(), 64).unwrap(),
                 State::new(&c),
-                State::new(&c),
+                State::new_draft(&c),
                 3,
                 None,
             )
@@ -945,5 +1033,22 @@ mod tests {
         assert_eq!(a.target, b.target);
         assert_eq!(a.draft, b.draft);
         assert_eq!(a.generate(4).unwrap(), b.generate(4).unwrap());
+    }
+    #[test]
+    fn zero_compression_mtp_uses_dense_history_and_no_indexer() {
+        let c = Config::tiny();
+        let mut w = tiny_weights(&c);
+        let prefix = format!("blk.{}.indexer.", c.layers);
+        w.0.retain(|name, _| !name.starts_with(&prefix));
+        let mut model = Reference::new(c.clone(), w, 64).unwrap();
+        let mut state = State::new_draft(&c);
+        for pos in 0..12 {
+            model
+                .draft(&mut state, &vec![0.1; c.width * c.hc], 1, pos)
+                .unwrap();
+        }
+        let a = &state.attention[c.layers];
+        assert_eq!(a.keys.len(), 12);
+        assert!(a.pooled.is_empty() && a.raw_tail.is_empty());
     }
 }

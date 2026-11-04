@@ -12,6 +12,7 @@
 | MTP 事务 | greedy；目标模型验证；拒绝后恢复所有继续生成状态；提交失败不污染已提交状态 |
 | PLE/加载 RAM 原语 | 保留量化数据、预热锁页、有限加载窗口；尚未接入完整设备加载器 |
 | QUactlize | 公共 packing/dense C ABI 绑定、类型尺寸检查、prepare/run 生命周期合同 |
+| CUDA proxy | RTX PRO 6000 SM120：同一 Rust 图与 MTP、真实 GGUF 切片、canonical packing、FA4/cuBLAS/PyTorch 对照通过 |
 | actlizeLA | 原生 GDN WY prefill C ABI 绑定及 workspace 计算 |
 | PPU 整模型执行 | 未实现完整 dispatch/allocator/计算图；禁止宣称已准入 |
 | 多 PPU / 文本 API / HTTP | 待实现 |
@@ -28,12 +29,15 @@
 
 当前只实现 greedy 接受规则。没有把 greedy 的一致性测试扩展宣称为随机采样的分布一致性。
 参考 `verify` 逐 token 执行，没有 MTP 加速；原生后端需要一次窗口验证和设备端接受前缀处理。
+CUDA proxy 也保留这一行为。指定 shared-Q8 MTP 的第 48 层 `compress_ratio=0`，
+使用 dense attention；主干 QSA 层的 ratio=4。加载时保留每层配置，不能因为 MTP 文件含 indexer
+权重就给草稿层开启 QSA。CPU 和 CUDA 回归覆盖超过小模型 QSA 预算的 MTP 历史。
 
 ## 原生后端下一步
 
 1. 在目标 PPU/SDK 上建立设备内存、stream/event、有限搬运窗口和 packed artifact 生命周期。
    使用真实 QUactlize query 检查每个 shape 与字节布局，并记录实际峰值。
-2. 接入 QUactlize dense/grouped 路径；实现 N=640 专家的 gate/up 原始字节拼接。
+2. 接入 QUactlize dense/grouped 路径；接线已验证的 N=640 专家 gate/up 原始字节拼接。
    完成 Q5_1 down 原始 reader，不能把它按 Q5_K 解释，不能无提示回落到 CPU。
 3. 接 GDN prefill/decode，验证 `value_head % key_heads` 映射、FP32 状态、sigmoid 输出门。
    如果 provider 使用连续分组，先做明确排列或扩展，再与参考对齐。
@@ -44,8 +48,11 @@
 ## 已有证据与限制
 
 本地 Rust 单元与真实描述回归测试可重现；QUactlize C++ public header 与 Rust ABI 尺寸检查通过。
-远端文件只读取有限前缀，完整模型权重未下载；描述 receipt 的 SHA256 不是完整权重验证结果。
+真实模型还读取了限定的专家/行切片用于 CUDA 校验；完整模型尚未完成下载或端到端对齐。
+描述 receipt 和切片的 SHA256 不是完整权重验证结果。
 本机 SDK 在 `cudaGetDeviceCount` 中报告缺少 `libhggcrt1.so`，没有 PPU kernel/吞吐测试结果。
+RTX 上的范围、结果和复现命令见 [CUDA proxy](cuda-proxy.md)。
+Strata 的显存驻留与批量 MTP 对本框架的启示见 [decode 设计核对](strata-decode.md)。
 
 ## 参考
 

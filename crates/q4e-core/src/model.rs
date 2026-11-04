@@ -28,6 +28,8 @@ pub struct Config {
     pub index_dim: usize,
     pub index_block: usize,
     pub index_top_k: usize,
+    /// One entry per trunk layer plus the predictor slot. Zero means dense attention.
+    pub attention_compress_ratios: Vec<usize>,
     pub expert_scale: f32,
     pub embedded_mtp_layers: usize,
     pub ple: Option<PleConfig>,
@@ -91,6 +93,19 @@ impl Config {
             .checked_sub(embedded_mtp_layers)
             .context("MTP count exceeds block count")?;
         let ratios = arr("attention.compress_ratios")?;
+        ensure!(
+            ratios.len() == blocks,
+            "attention compression count differs from block count"
+        );
+        let mut attention_compress_ratios: Vec<usize> = ratios
+            .iter()
+            .map(|&x| usize::try_from(x).context("compression ratio overflow"))
+            .collect::<Result<_>>()?;
+        // A target-only file does not describe the separate predictor. The fixed
+        // shared-Q8 sidecar uses a zero ratio and is checked against this slot.
+        if embedded_mtp_layers == 0 {
+            attention_compress_ratios.push(0);
+        }
         let index_block = *ratios
             .iter()
             .find(|&&x| x > 0)
@@ -166,6 +181,7 @@ impl Config {
             index_dim: u("attention.indexer.key_length")?,
             index_block,
             index_top_k: u("attention.indexer.top_k")?,
+            attention_compress_ratios,
             expert_scale: f("expert_weights_scale", 1.0)?,
             embedded_mtp_layers,
             ple,
@@ -212,6 +228,16 @@ impl Config {
             self.index_block > 1 && self.index_top_k % self.index_block == 0,
             "invalid QSA budget"
         );
+        ensure!(
+            self.attention_compress_ratios.len() == self.layers + 1,
+            "missing per-layer compression modes"
+        );
+        for (il, &ratio) in self.attention_compress_ratios.iter().enumerate() {
+            ensure!(
+                ratio == 0 || (self.is_attention(il) && ratio == self.index_block),
+                "invalid compression mode in layer {il}"
+            );
+        }
         ensure!(
             self.rope_dim > 0
                 && self.rope_dim % 2 == 0
@@ -287,6 +313,7 @@ impl Config {
             index_dim: 4,
             index_block: 2,
             index_top_k: 4,
+            attention_compress_ratios: vec![0, 2, 0],
             expert_scale: 1.0,
             embedded_mtp_layers: 1,
             ple: Some(PleConfig {

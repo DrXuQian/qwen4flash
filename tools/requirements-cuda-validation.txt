@@ -1,0 +1,7 @@
+# Validation only. Install into an isolated environment with a matching CUDA PyTorch.
+# Measured with existing torch 2.8.0+cu128; these packages are not Rust runtime dependencies.
+numpy==2.3.2
+gguf==0.19.0
+flash-attn-4==4.0.0b37
+nvidia-cutlass-dsl==4.8.1
+cuda-bindings==13.4.4

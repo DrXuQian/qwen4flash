@@ -18,6 +18,11 @@ fn pinned_shards_and_shared_mtp_match_the_real_tensor_contract() {
     let c = Config::from_index(&t).unwrap();
     validate_target(&t, &c).unwrap();
     validate_shared_mtp(&m, &c).unwrap();
+    assert_eq!(c.attention_compress_ratios[3], 4);
+    assert_eq!(
+        Config::from_index(&m).unwrap().attention_compress_ratios[48],
+        0
+    );
     assert_eq!((t.tensors().count(), m.tensors().count()), (1224, 32));
     assert!(m.tensor("token_embd.weight").is_err());
     assert!(m.tensor("output.weight").is_err());

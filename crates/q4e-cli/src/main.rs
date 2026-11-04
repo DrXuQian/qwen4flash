@@ -18,6 +18,16 @@ struct Cli {
     #[command(subcommand)]
     command: Command,
 }
+#[derive(clap::Args)]
+struct CudaOptions {
+    /// Explicit synchronous CUDA validation backend. State/elementwise work stays on the host.
+    #[arg(long)]
+    cuda_proxy_lib: Option<PathBuf>,
+    #[arg(long, default_value_t = 0)]
+    device: i32,
+    #[arg(long, default_value_t = 88)]
+    weight_budget_gib: u64,
+}
 #[derive(Subcommand)]
 enum Command {
     /// Read GGUF descriptors across all shards, without mapping weight payloads.
@@ -50,6 +60,8 @@ enum Command {
         tokens: String,
         #[arg(long, default_value_t = 16)]
         generate: usize,
+        #[command(flatten)]
+        cuda: CudaOptions,
     },
     /// Slow scalar model oracle. Input/output are token IDs, not a serving API.
     Reference {
@@ -62,6 +74,8 @@ enum Command {
         generate: usize,
         #[arg(long, default_value_t = 128)]
         context: usize,
+        #[command(flatten)]
+        cuda: CudaOptions,
     },
     /// Probe an explicitly selected trusted SDK runtime and optional QUactlize DSO.
     Probe {
@@ -119,20 +133,38 @@ fn generate(
     input: &str,
     count: usize,
     context: usize,
+    cuda: &CudaOptions,
 ) -> Result<()> {
     let input = tokens(input)?;
     ensure!(
         input.len().checked_add(count).is_some_and(|n| n <= context),
         "requested tokens exceed prepared context"
     );
-    let model = Reference::new(config.clone(), weights, context)?;
-    let mut s = Session::new(model, State::new(&config), State::new(&config), 3, None)?;
+    let mut model = Reference::new(config.clone(), weights, context)?;
+    if let Some(path) = &cuda.cuda_proxy_lib {
+        let budget = cuda
+            .weight_budget_gib
+            .checked_mul(1 << 30)
+            .context("weight budget overflow")?;
+        model = model.with_operators(Box::new(q4e_cuda::CudaProxy::load(
+            path,
+            cuda.device,
+            budget,
+        )?));
+    }
+    let mut s = Session::new(
+        model,
+        State::new(&config),
+        State::new_draft(&config),
+        3,
+        None,
+    )?;
     s.prefill(&input)?;
     let out = s.generate(count)?;
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &serde_json::json!({"backend":"scalar_reference","mtp":"learned_greedy","tokens":out,"stats":s.stats,"acceptance":s.stats.acceptance(),"native_ppu_execution":false})
+            &serde_json::json!({"backend":s.backend.operators.name(),"mtp":"learned_greedy","tokens":out,"stats":s.stats,"operators":s.backend.operators.stats(),"host_state":true,"acceptance":s.stats.acceptance(),"native_ppu_execution":false})
         )?
     );
     Ok(())
@@ -196,10 +228,11 @@ fn main() -> Result<()> {
         Command::Demo {
             tokens,
             generate: count,
+            cuda,
         } => {
             let c = Config::tiny();
             let w = tiny_weights(&c);
-            generate(c, w, &tokens, count, 256)
+            generate(c, w, &tokens, count, 256, &cuda)
         }
         Command::Reference {
             model,
@@ -207,6 +240,7 @@ fn main() -> Result<()> {
             tokens,
             generate: count,
             context,
+            cuda,
         } => {
             let index = ModelIndex::open(&model)?;
             let c = Config::from_index(&index)?;
@@ -223,7 +257,7 @@ fn main() -> Result<()> {
                 );
                 w.attach_shared_mtp(&ModelIndex::open(&path)?, &c)?;
             }
-            generate(c, w, &tokens, count, context)
+            generate(c, w, &tokens, count, context, &cuda)
         }
         Command::Probe { runtime, quactlize } => {
             let (version, devices) = q4e_ppu::probe_runtime(&runtime)?;

@@ -1,0 +1,28 @@
+{
+  "date_utc": "2026-11-04",
+  "purpose": "format_and_framework_validation",
+  "full_model_logits_validated": false,
+  "performance_claim": false,
+  "quactlize_commit": "4fb7ce037f36768bf900f1c33d606f7eeaf87f80",
+  "nvidia_cutlass_commit": "f94ec46f4f63f96003d6cfdf2014731e7672c281",
+  "official_hf_vs_mirror_12_sample_sha256_equal": true,
+  "cpu_cuda_demo_tokens_equal": true,
+  "cpu_tests_passed": 23,
+  "cuda_tests_passed": 3,
+  "driver": "580.82.09",
+  "device_total_mib": 97887,
+  "source_sha256": {
+    "native/cuda/api.h": "4dc2b190e341726831157b1ca5de7116d310c29d89145fa05d7439877d33d081",
+    "native/cuda/proxy.cu": "708e389adaa40cc499bd7831bc3fca04e55af4288683b49a2182479c6b598fb7",
+    "native/cuda/compat/hggc_runtime.h": "99ef507a38e91b757679e11e5cfe0c76405dccfc2f5f93131b1594f4a0f05261",
+    "crates/q4e-core/src/model.rs": "b7f65779743a92ea74d991ddbf35f61cddf946a0230be2506c99616f10e21ee7",
+    "crates/q4e-core/src/reference.rs": "a2c0971370a1afdac3fa992b7707e27f1c9b9432e9a3a55a41095388b3d05995",
+    "crates/q4e-core/src/ops.rs": "15edcd925ea32441d372668c2313c2ea056fe909dff1076bf5765265063aded7",
+    "crates/q4e-core/src/weight_ops.rs": "8e78b9d7cb519df320c478f17f20f3fe027106db08098359747445c6935d7647",
+    "crates/q4e-cuda/src/lib.rs": "53736273a9822ef528fb1686490516d53008705279a969589ad9afd75578cb35",
+    "crates/q4e-cuda/tests/proxy.rs": "7622a5a746269caabff8728de5b128cb5e0377fb275796a66db88d1366ba4e66",
+    "crates/q4e-cli/src/main.rs": "fdc5139080754fd1d26264f924418c3a51ee2e13340fe5dc3da8d7d6c67b2648"
+  },
+  "q4e_release_binary_sha256": "f96b449018e935a57f60d197007682876da60fa30e35f36ae5927340222079c7",
+  "cuda_test_binary_sha256": "b61a5d4816b04a74887e4a038acd109841f3982781f9005703b51fe48b97a745"
+}

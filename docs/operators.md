@@ -20,7 +20,10 @@ QUactlize 的准备阶段可能使用其 JIT 工具；这属于启动阶段，�
 - context 拥有 plan/module，权重必须保持不可变，buffer、stream 和 library 必须覆盖异步使用期。
 - Q5_1 不属于现有 K-quant dense 合同，需要独立原生 reader。
 - 专家 FFN=640。gate/up 按每个专家拼接成 1280 行；现有 pair pack API 要求原始 N 自身对齐，
-  不能直接以 N=640 调用并假定成功。拼接 adapter 尚待实现。
+  不能直接以 N=640 调用并假定成功。`join_expert_gate_up` 已实现逐专家、原始量化字节拼接，
+  并在 CUDA 上检查 Q4_K/Q5_K/Q8_0 拼接后的 canonical packing。
+- 当前 QUactlize Q8 canonical producer 要求 K 为 256 的倍数。K=640 的 Q8 down 走原始 GGUF
+  reader；不把 dense query 的宽松条件当成 producer 准入，也不修改形状假装兼容。
 - Router 为 512 选 10，不能继承旧 helper 的 256 专家或固定少量 routed rows 限制。
 
 ## actlizeLA 合同
@@ -42,3 +45,10 @@ gate cache 的 workspace 字节数。Qwen 的 head 复用是 `vh % Hk`，接入�
 
 组织目录或上游 README 中列出某个 CUDA 算子，不代表它在目标 PPU/SDK/shape 上已经可用。
 每个最终选择都需原生编译、数值对齐、调用轨迹和实际性能证据。第三方库保留各自许可证。
+
+## NVIDIA 校验边界
+
+`q4e-cuda` 在同一 Rust 语义与 MTP 事务上替换矩阵、注意力和 GDN 递推算子，缺失算子直接报错。
+CUDA 原始 GGUF reader 使用 F32 累加；QUactlize 的 producer 和格式 traits 保持原样，
+仅用 `hggc_runtime.h` 名称桥接到 CUDA runtime。优化的 PPU SM90 kernel 不在 SM120 上运行。
+格式一致性不等于已验证 PPU 的 F16/BF16 数值路径或性能；详见 [CUDA 验证](cuda-proxy.md)。

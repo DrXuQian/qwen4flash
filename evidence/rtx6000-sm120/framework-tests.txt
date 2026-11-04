@@ -1,0 +1,7 @@
+
+running 3 tests
+test raw_gguf_format_expert_strides_and_variable_m ... ok
+test real_model_gdn_heads_and_selected_attention ... ok
+test same_rust_graph_and_mtp_transaction_run_on_cuda ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s

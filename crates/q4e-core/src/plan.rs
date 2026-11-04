@@ -190,8 +190,13 @@ impl PreparedPlan {
         let seq = options.concurrency;
         let target_kv = bytes(attn * seq * options.context * c.kv_heads * c.head_dim * 4);
         let draft_kv = bytes(seq * options.context * c.kv_heads * c.head_dim * 4);
+        let indexed = c
+            .attention_compress_ratios
+            .iter()
+            .filter(|&&r| r > 0)
+            .count();
         let indexer = bytes(
-            (attn + 1)
+            indexed
                 * seq
                 * (options.context.div_ceil(c.index_block) + c.index_block)
                 * c.index_dim
@@ -343,7 +348,11 @@ impl PreparedPlan {
                 "draft_attention_and_moe",
                 Some(c.layers),
                 "same operator adapters",
-                "separate_draft_kv + selector_state",
+                if c.attention_compress_ratios[c.layers] == 0 {
+                    "separate_draft_kv (dense attention)"
+                } else {
+                    "separate_draft_kv + selector_state"
+                },
             ),
             stage("draft_head", Some(c.layers), "quactlize", "draft_hidden"),
             stage(

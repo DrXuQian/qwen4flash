@@ -1,0 +1,43 @@
+{
+  "acceptance": 0.0196078431372549,
+  "backend": "scalar_reference",
+  "host_state": true,
+  "mtp": "learned_greedy",
+  "native_ppu_execution": false,
+  "operators": {
+    "attention": 0,
+    "gdn": 0,
+    "matmuls": 0,
+    "resident_weight_bytes": 0,
+    "weight_uploads": 0
+  },
+  "stats": {
+    "accepted_drafts": 1,
+    "committed": 20,
+    "proposed": 51,
+    "rounds": 19,
+    "target_rows": 70
+  },
+  "tokens": [
+    3,
+    12,
+    5,
+    2,
+    3,
+    8,
+    4,
+    13,
+    13,
+    7,
+    13,
+    7,
+    7,
+    7,
+    7,
+    7,
+    8,
+    8,
+    8,
+    5
+  ]
+}

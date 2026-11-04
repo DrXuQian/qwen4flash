@@ -246,6 +246,7 @@ dependencies = [
  "anyhow",
  "clap",
  "q4e-core",
+ "q4e-cuda",
  "q4e-ppu",
  "serde_json",
 ]
@@ -261,6 +262,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "q4e-cuda"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "half",
+ "libloading",
+ "q4e-core",
 ]
 
 [[package]]

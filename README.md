@@ -6,7 +6,8 @@
 
 **当前是可运行的开发原型，尚不能在 PPU 上运行完整大模型。**
 已有数值参考执行器、共享 MTP 加载、完整状态回滚、真实模型的张量与容量校验，
-以及原生算子 C ABI 绑定。原生计算图、若干模型专用算子、多卡执行和真实设备验证仍在开发中。
+以及原生算子 C ABI 绑定。新增 CUDA proxy，在 RTX PRO 6000 Blackwell 上验证同一 Rust 图、
+MTP 状态与 GGUF/QUactlize 格式。PPU 原生计算图、若干模型专用算子、多卡执行和 PPU 实测仍在开发中。
 没有静默的 CPU 算子回退，也没有未经测量的 PPU 吞吐数字。
 
 ## 固定模型组合
@@ -35,6 +36,18 @@ cargo run --locked -- demo --tokens 1,3,2,4,7 --generate 20
 
 `demo` 执行缩小的 GDN、QSA、PLE、MoE 和 MTP 网络。它使用确定性合成权重和 token ID，
 用于检查数值和状态流转，不是语言模型生成能力或吞吐演示。
+
+已有 NVIDIA 设备时，可加载 CUDA 兼容后端，矩阵、注意力和 GDN 递推实际在 GPU 执行：
+
+```sh
+python3 tools/build_cuda_proxy.py --arch sm_120
+cargo run --release --locked -- demo --generate 20 \
+  --cuda-proxy-lib native/build/cuda/libq4e_cuda_proxy.so
+```
+
+这条路径仍使用主机状态和同步算子调用，MTP 验证逐 token 执行。它验证兼容性，不用于吞吐对标。
+复现真实权重切片、QUactlize packing、FlashAttention 和 cuBLAS 校验，见
+[CUDA proxy](docs/cuda-proxy.md) 与 [RTX 实测证据](evidence/rtx6000-sm120/README.md)。
 
 不下载大权重即可复现容量规划：
 
@@ -111,4 +124,5 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 
 测试覆盖错误/截断 GGUF、真实分片与 MTP 描述、量化格式关键位序、分块加载边界、
 MTP 全接受/拒绝/EOS/失败事务，以及小模型的普通解码与 MTP 解码及后续状态一致性。
+CPU 检查包含 23 项测试；另有 3 项需真实 CUDA 设备的测试，默认忽略，运行方法见 CUDA 文档。
 这些测试不能替代完整模型对齐、PPU 数值测试和性能测试。
