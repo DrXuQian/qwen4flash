@@ -1,0 +1,14 @@
+{
+  "schema": "q4e.remote-descriptors.v1",
+  "metadata_only": true,
+  "repository": "unsloth/Qwen3.8-Flash-Next-GGUF",
+  "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+  "files": [
+    {
+      "path": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+      "header_sha256": "5e9f7cc77b478fdd57cbbd2d5678d7c3d55a43c6f1428f78bae1f219385ed5d3",
+      "header_bytes": 10946608,
+      "file_bytes": 2786568256
+    }
+  ]
+}

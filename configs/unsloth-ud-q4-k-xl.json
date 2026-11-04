@@ -1,0 +1,21 @@
+{
+  "architecture": "qwen4exp",
+  "repository": "unsloth/Qwen3.8-Flash-Next-GGUF",
+  "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+  "directory": "UD-Q4_K_XL",
+  "first_shard": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
+  "ple_placement": "resident_ram",
+  "host_budget_gib": 64,
+  "device_budget_gib": 96,
+  "context": 32768,
+  "concurrency": 1,
+  "mtp": {
+    "required": true,
+    "repository": "unsloth/Qwen3.8-Flash-Next-GGUF",
+    "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+    "file": "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf",
+    "sha256": "5ff54097406a905cf3a724c709124ceb0e3e10235ee862298969e91c96fa96e6",
+    "shared_target_tensors": ["token_embd.weight", "output.weight"],
+    "draft_tokens": 3
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "q4e.remote-descriptors.v1",
+  "metadata_only": true,
+  "repository": "unsloth/Qwen3.8-Flash-Next-GGUF",
+  "revision": "38bb39ee97821de2c9009abb7e93950eec396e66",
+  "files": [
+    {
+      "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf",
+      "header_sha256": "acc44040f74d0e55fb89c3967056cce5dbda1bcc52e909c3ba6fc72b5e9c0858",
+      "header_bytes": 10946618,
+      "file_bytes": 10946624
+    },
+    {
+      "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf",
+      "header_sha256": "ede2308753458536267650f9c6ba2c6332d177eeff507acf9aaf99c316afd1da",
+      "header_bytes": 18695,
+      "file_bytes": 49859583136
+    },
+    {
+      "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00003-of-00004.gguf",
+      "header_sha256": "774810ae62bd36de97428d19ee43c5524050a62c25e4c9408bf8e75130649ace",
+      "header_bytes": 48045,
+      "file_bytes": 49376141504
+    },
+    {
+      "path": "UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf",
+      "header_sha256": "181797a77cdb63fe46c11f8d09e9ddda036450cf9caf40cd76ae2c5e5a80df6e",
+      "header_bytes": 11267,
+      "file_bytes": 12087983520
+    }
+  ]
+}

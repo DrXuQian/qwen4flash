@@ -1,0 +1,6 @@
+/target/
+/artifacts/
+/models/
+/native/build/
+__pycache__/
+*.pyc
