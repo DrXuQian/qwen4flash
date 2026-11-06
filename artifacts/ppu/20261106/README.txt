@@ -5,6 +5,7 @@ This artifacts/ppu-20261106 branch hosts the current wheels in Git LFS:
 
   actlize_la-0.2.1-1ppu10version221184ee6-py3-none-linux_x86_64.whl
   flashinfer_python-0.6.18+ppu.flare2-py3-none-any.whl
+  flare_heliopause-0.1.0-cp312-cp312-linux_x86_64.whl
 
 GitHub refused new LFS uploads to the public spark-local-inference fork. This
 previously authorized qwen4flash repository supplies the LFS storage instead;
@@ -26,6 +27,13 @@ compatibility header, avoiding conflicts with implemented SDK APIs. Eighteen
 host checks and the real SDK2.2.1 sampling compile/link pass. Device replay on
 the box remains pending. flare1 is retained for history; do not install both.
 
+Heliopause is the framework's separate Rust/Python extension. Its CPython3.12 /
+Linux x86_64 wheel contains the generic PCI identity handling introduced in
+framework 2275803. It needs glibc >=2.34, OpenSSL3 and libstdc++; it does not ship
+Torch or GPU operator libraries. Installation and isolated import pass in a
+fresh environment, and fourteen native package publication/conversion cases
+pass. PPU module recording/export/replay still require device qualification.
+
 In this repository, retrieve the files with:
 
   git lfs install --local
@@ -36,7 +44,12 @@ platform Torch, Triton, TVM-FFI and other platform libraries:
 
   python -m pip install --no-deps --force-reinstall \
     artifacts/ppu/20261106/wheels/actlize_la-0.2.1-1ppu10version221184ee6-py3-none-linux_x86_64.whl \
-    artifacts/ppu/20261106/wheels/flashinfer_python-0.6.18+ppu.flare2-py3-none-any.whl
+    artifacts/ppu/20261106/wheels/flashinfer_python-0.6.18+ppu.flare2-py3-none-any.whl \
+    artifacts/ppu/20261106/wheels/flare_heliopause-0.1.0-cp312-cp312-linux_x86_64.whl
+
+Check native installation with the interpreter used for model preparation:
+
+  python -c "import sys, flare_heliopause; print(sys.executable); print(flare_heliopause.__file__)"
 
 Use spark-local-inference feat/qwen38-gguf at 2a5dc34 or newer for the QSA and
 sampling component/catalog gates. These wheels have host-test and PPU SDK
