@@ -35,10 +35,15 @@ fresh environment, and fourteen native package publication/conversion cases
 pass. PPU module recording/export/replay still require device qualification.
 The refreshed wheel also checks all required driver callback names before
 subscribing, reports missing/mismatched names together, and enables the previously
-omitted FatBinary module-load callback. Fifteen recorder unit tests and thirteen
-native/Python ABI checks pass on the host; one device test is skipped. SDK2.1.1
-rejects callback 742; local SDK2.2.1 resolves all 47 names. The deployment box
-reports LAZY loading and still needs compatible HGPTI event delivery. Reinstall
+omitted FatBinary module-load callback. The latest wheel also accepts the explicit
+module_resource_abi="hgpti-bare" workaround for SDK2.2.1's bare module-resource
+payloads. It recovers context from same-thread nested driver callbacks and keeps
+image ownership and unload/context teardown checks. Standard CUPTI remains the
+default. Twenty recorder unit tests and seventeen native/Python ABI checks pass
+on the host; one device test is skipped. Actual SDK2.2.1 synthetic driver/module
+events also reach this native workaround without a crash and preserve context.
+SDK2.1.1 rejects callback 742; SDK2.2.1 passes activation/allocation checks on the
+box, but complete device export/replay still need qualification. Reinstall
 this refreshed wheel with --force-reinstall; its package version remains 0.1.0.
 See the framework's docs/ppu-hgpti-callback-prompt.txt for the SDK task and gates.
 
