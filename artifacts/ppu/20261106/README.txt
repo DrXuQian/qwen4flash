@@ -47,7 +47,7 @@ box, but complete device export/replay still need qualification. Reinstall
 this refreshed wheel with --force-reinstall; its package version remains 0.1.0.
 See the framework's docs/ppu-hgpti-callback-prompt.txt for the SDK task and gates.
 
-The current native wheel includes framework f360a0244c3222709c4d9cdd9f34f6b9624b4dc5.
+The current native wheel includes framework aa3bbbc.
 It reads ABI-4 PPU ELF argument records in export and native loading, because
 SDK2.2.1 FuncGetParamInfo/FuncLoad are stubs. Hidden arguments are excluded;
 counts and widths remain validated. Packed-buffer offsets and unqualified
@@ -55,8 +55,22 @@ sub-word register parameters fail explicitly. Both HGCC ppu10/15 compiler-only
 cases pass, along with 23 Rust capture/ELF and 62 Python/native checks. Actual
 PPU export and Rust replay still need the box. Rebuild the Rust executable as
 well as reinstalling this wheel; no SDK/Torch/Triton patch is installed.
-Wheel SHA256: 3802047429302d9d37516f1d999fada14f7fd3ba5c8d3ed77ec251ebe354bdb7
-Wheel bytes: 7530169
+It also audits HGPTI graph attribute defaults before handling SDK2.2.1's
+INVALID_VALUE replies. The graph getter/setter accepts only IDs 1/2/4, although
+LaunchKernelEx can set policy 5. Nineteen additional mandatory callbacks prove
+fresh single-stream capture defaults with an exact launch inventory. Explicit,
+copied, inherited or unobserved state and other errors remain fatal. Supported
+getter values and NVIDIA behavior are unchanged; serving adds no work.
+Forty-nine focused Rust checks pass (three CUDA ignored), along with 64
+Python/native checks (one device skipped). Real SDK callback names and ABI
+layouts match; synthetic delivery reaches the audit. These host checks do not
+qualify device callback activation or replay. A broader export test hit an
+existing inode-mutation test failure, also reproduced in the pre-change binary.
+Reinstall this wheel and rerun the tiny PPU export/replay gate. Nondefault and
+more complex graph histories need SDK getters/setters; see the framework's
+docs/ppu-graph-attributes-prompt.txt for that task.
+Wheel SHA256: 14829b55c8a3d18634d6054ebe1a1b974605378f77e5bd5c0a6a20c4e2d7c364
+Wheel bytes: 7554375
 
 In this repository, retrieve the files with:
 
