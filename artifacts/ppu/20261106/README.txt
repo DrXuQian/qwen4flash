@@ -47,7 +47,7 @@ box, but complete device export/replay still need qualification. Reinstall
 this refreshed wheel with --force-reinstall; its package version remains 0.1.0.
 See the framework's docs/ppu-hgpti-callback-prompt.txt for the SDK task and gates.
 
-The current native wheel includes framework aa3bbbc.
+The current native wheel includes framework a1915a2.
 It reads ABI-4 PPU ELF argument records in export and native loading, because
 SDK2.2.1 FuncGetParamInfo/FuncLoad are stubs. Hidden arguments are excluded;
 counts and widths remain validated. Packed-buffer offsets and unqualified
@@ -69,8 +69,19 @@ existing inode-mutation test failure, also reproduced in the pre-change binary.
 Reinstall this wheel and rerun the tiny PPU export/replay gate. Nondefault and
 more complex graph histories need SDK getters/setters; see the framework's
 docs/ppu-graph-attributes-prompt.txt for that task.
-Wheel SHA256: 14829b55c8a3d18634d6054ebe1a1b974605378f77e5bd5c0a6a20c4e2d7c364
-Wheel bytes: 7554375
+The latest export change reserves discovered PPU external storage at allocation
+granularity. The box's external page is at 0x55800000; rounding its reservation
+down to a GiB caused native loading to request 0x40000000 and receive a different
+address. Separate PPU processes reproduce that mismatch and exactly reserve
+the actual 8 MiB page and the high arena's GiB range. Validated PPU ELF modules
+and native allocation records select the precise external ranges. Arena/NVIDIA
+ranges, recorded pointer bytes and strict native address checks are preserved.
+Twenty-three Rust capture checks pass (three device cases ignored), with 16
+installed-wheel package checks passing (12 device cases skipped). Reinstall
+the wheel and re-export the tiny package; complete PPU native loading/replay
+still require the box. This latest change needs no serving executable rebuild.
+Wheel SHA256: a21bf903610183dea75e52be42c5c8c25cc72715b99a1efd01a06806131ec773
+Wheel bytes: 7561501
 
 In this repository, retrieve the files with:
 
