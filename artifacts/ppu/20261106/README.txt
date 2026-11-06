@@ -47,6 +47,17 @@ box, but complete device export/replay still need qualification. Reinstall
 this refreshed wheel with --force-reinstall; its package version remains 0.1.0.
 See the framework's docs/ppu-hgpti-callback-prompt.txt for the SDK task and gates.
 
+The current native wheel includes framework f360a0244c3222709c4d9cdd9f34f6b9624b4dc5.
+It reads ABI-4 PPU ELF argument records in export and native loading, because
+SDK2.2.1 FuncGetParamInfo/FuncLoad are stubs. Hidden arguments are excluded;
+counts and widths remain validated. Packed-buffer offsets and unqualified
+sub-word register parameters fail explicitly. Both HGCC ppu10/15 compiler-only
+cases pass, along with 23 Rust capture/ELF and 62 Python/native checks. Actual
+PPU export and Rust replay still need the box. Rebuild the Rust executable as
+well as reinstalling this wheel; no SDK/Torch/Triton patch is installed.
+Wheel SHA256: 3802047429302d9d37516f1d999fada14f7fd3ba5c8d3ed77ec251ebe354bdb7
+Wheel bytes: 7530169
+
 In this repository, retrieve the files with:
 
   git lfs install --local
