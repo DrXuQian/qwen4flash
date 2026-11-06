@@ -33,6 +33,14 @@ framework 2275803. It needs glibc >=2.34, OpenSSL3 and libstdc++; it does not sh
 Torch or GPU operator libraries. Installation and isolated import pass in a
 fresh environment, and fourteen native package publication/conversion cases
 pass. PPU module recording/export/replay still require device qualification.
+The refreshed wheel also checks all required driver callback names before
+subscribing, reports missing/mismatched names together, and enables the previously
+omitted FatBinary module-load callback. Fifteen recorder unit tests and thirteen
+native/Python ABI checks pass on the host; one device test is skipped. SDK2.1.1
+rejects callback 742; local SDK2.2.1 resolves all 47 names. The deployment box
+reports LAZY loading and still needs compatible HGPTI event delivery. Reinstall
+this refreshed wheel with --force-reinstall; its package version remains 0.1.0.
+See the framework's docs/ppu-hgpti-callback-prompt.txt for the SDK task and gates.
 
 In this repository, retrieve the files with:
 
